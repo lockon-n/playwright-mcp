@@ -1,19 +1,19 @@
 {
-  "name": "@playwright/mcp-extension",
-  "version": "0.0.32",
+  "name": "@lockon0927/playwright-mcp-with-chunk-extension",
+  "version": "0.1.1",
   "description": "Playwright MCP Browser Extension",
   "type": "module",
-  "private": true,
+  "private": false,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/microsoft/playwright-mcp.git"
+    "url": "git+https://github.com/lockon-n/playwright-mcp.git"
   },
   "homepage": "https://playwright.dev",
   "engines": {
     "node": ">=18"
   },
   "author": {
-    "name": "Microsoft Corporation"
+    "name": "Microsoft Corporation & Lockon"
   },
   "license": "Apache-2.0",
   "scripts": {
@@ -29,6 +29,6 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "typescript": "^5.8.2",
-    "vite": "^5.0.0"
+    "vite": "^7.0.6"
   }
 }
