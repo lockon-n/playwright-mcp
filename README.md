@@ -178,6 +178,9 @@ Playwright MCP server supports following arguments. They can be provided in the 
                                the output directory.
   --save-trace                 Whether to save the Playwright Trace of the
                                session into the output directory.
+  --span-size <size>           Size of each snapshot span in characters. Use -1
+                               to disable pagination and show complete snapshot.
+                               Defaults to 2000.
   --storage-state <path>       path to the storage state file for isolated
                                sessions.
   --user-agent <ua string>     specify user agent string
@@ -534,8 +537,69 @@ http.createServer(async (req, res) => {
 
 - **browser_snapshot**
   - Title: Page snapshot
-  - Description: Capture accessibility snapshot of the current page, this is better than screenshot
+  - Description: Capture accessibility snapshot of the current page. The snapshot is divided into manageable spans (configurable via --span-size, default 2000 characters, or use -1 to show complete snapshot) and shows the first span by default. Use browser_snapshot_navigate_* tools to view other spans or browser_snapshot_search to find content across all spans. This provides structured element data with ref attributes for interaction, making it better than screenshots for automation.
   - Parameters: None
+  - Read-only: **true**
+
+<!-- NOTE: This has been generated via update-readme.js -->
+
+- **browser_snapshot_navigate_to_first_span**
+  - Title: Navigate to first snapshot span
+  - Description: Navigate to the first span of the current page snapshot. This shows the beginning of the page content and is useful for starting from the top of the page when exploring content sequentially.
+  - Parameters: None
+  - Read-only: **true**
+
+<!-- NOTE: This has been generated via update-readme.js -->
+
+- **browser_snapshot_navigate_to_last_span**
+  - Title: Navigate to last snapshot span
+  - Description: Navigate to the last span of the current page snapshot. This shows the end of the page content and is useful for accessing footer content, final form elements, or bottom navigation.
+  - Parameters: None
+  - Read-only: **true**
+
+<!-- NOTE: This has been generated via update-readme.js -->
+
+- **browser_snapshot_navigate_to_line**
+  - Title: Navigate to specific line in snapshot
+  - Description: Navigate to a specific global line number in the current page snapshot with configurable surrounding context lines. Shows which spans contain the context lines. The target line is marked with ">>>". Use this to quickly jump to specific content found via search results.
+  - Parameters:
+    - `globalLineNumber` (integer): The global line number to navigate to (1-based)
+    - `contextLines` (integer, optional): Number of context lines to show before and after the target line (default: 3)
+  - Read-only: **true**
+
+<!-- NOTE: This has been generated via update-readme.js -->
+
+- **browser_snapshot_navigate_to_next_span**
+  - Title: Navigate to next snapshot span
+  - Description: Navigate to the next span in the current page snapshot. If already at the last span, stays at the last span. Use this for sequential exploration of page content from top to bottom.
+  - Parameters: None
+  - Read-only: **true**
+
+<!-- NOTE: This has been generated via update-readme.js -->
+
+- **browser_snapshot_navigate_to_prev_span**
+  - Title: Navigate to previous snapshot span
+  - Description: Navigate to the previous span in the current page snapshot. If already at the first span, stays at the first span. Use this for sequential exploration of page content from bottom to top.
+  - Parameters: None
+  - Read-only: **true**
+
+<!-- NOTE: This has been generated via update-readme.js -->
+
+- **browser_snapshot_navigate_to_span**
+  - Title: Navigate to specific snapshot span
+  - Description: Navigate to a specific span in the current page snapshot by index. Each span contains a portion of the page content (limited by span size). Use this when you know the exact span number you want to view, typically after using browser_snapshot_search to locate content.
+  - Parameters:
+    - `spanIndex` (integer): The span index to navigate to (0-based)
+  - Read-only: **true**
+
+<!-- NOTE: This has been generated via update-readme.js -->
+
+- **browser_snapshot_search**
+  - Title: Search in current snapshot
+  - Description: Search for a pattern across all spans of the current page snapshot using regular expressions. Returns matches with both global line numbers (across entire snapshot) and in-span line numbers (within each span). Shows which spans contain matches for navigation. Supports regex flags like "gi" for global case-insensitive search.
+  - Parameters:
+    - `pattern` (string): The regex pattern to search for
+    - `flags` (string, optional): Optional regex flags (e.g., "gi" for global case-insensitive)
   - Read-only: **true**
 
 <!-- NOTE: This has been generated via update-readme.js -->

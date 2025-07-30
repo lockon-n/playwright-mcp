@@ -44,6 +44,7 @@ export type CLIOptions = {
   proxyServer?: string;
   saveSession?: boolean;
   saveTrace?: boolean;
+  spanSize?: number;
   storageState?: string;
   userAgent?: string;
   userDataDir?: string;
@@ -194,6 +195,7 @@ export function configFromCLIOptions(cliOptions: CLIOptions): Config {
     saveTrace: cliOptions.saveTrace,
     outputDir: cliOptions.outputDir,
     imageResponses: cliOptions.imageResponses,
+    spanSize: cliOptions.spanSize,
   };
 
   return result;
@@ -222,6 +224,7 @@ function configFromEnv(): Config {
   options.proxyBypass = envToString(process.env.PLAYWRIGHT_MCP_PROXY_BYPASS);
   options.proxyServer = envToString(process.env.PLAYWRIGHT_MCP_PROXY_SERVER);
   options.saveTrace = envToBoolean(process.env.PLAYWRIGHT_MCP_SAVE_TRACE);
+  options.spanSize = envToNumber(process.env.PLAYWRIGHT_MCP_SPAN_SIZE);
   options.storageState = envToString(process.env.PLAYWRIGHT_MCP_STORAGE_STATE);
   options.userAgent = envToString(process.env.PLAYWRIGHT_MCP_USER_AGENT);
   options.userDataDir = envToString(process.env.PLAYWRIGHT_MCP_USER_DATA_DIR);

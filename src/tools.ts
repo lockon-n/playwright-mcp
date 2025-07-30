@@ -25,6 +25,7 @@ import navigate from './tools/navigate.js';
 import network from './tools/network.js';
 import pdf from './tools/pdf.js';
 import snapshot from './tools/snapshot.js';
+import snapshotNavigation from './tools/snapshotNavigation.js';
 import tabs from './tools/tabs.js';
 import screenshot from './tools/screenshot.js';
 import wait from './tools/wait.js';
@@ -47,6 +48,7 @@ export const allTools: Tool<any>[] = [
   ...pdf,
   ...screenshot,
   ...snapshot,
+  ...snapshotNavigation,
   ...tabs,
   ...wait,
 ];

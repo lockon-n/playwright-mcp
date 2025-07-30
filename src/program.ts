@@ -51,6 +51,7 @@ program
     .option('--proxy-server <proxy>', 'specify proxy server, for example "http://myproxy:3128" or "socks5://myproxy:8080"')
     .option('--save-session', 'Whether to save the Playwright MCP session into the output directory.')
     .option('--save-trace', 'Whether to save the Playwright Trace of the session into the output directory.')
+    .option('--span-size <size>', 'Size of each snapshot span in characters. Use -1 to disable pagination and show complete snapshot. Defaults to 2000.')
     .option('--storage-state <path>', 'path to the storage state file for isolated sessions.')
     .option('--user-agent <ua string>', 'specify user agent string')
     .option('--user-data-dir <path>', 'path to the user data directory. If not specified, a temporary directory will be created.')

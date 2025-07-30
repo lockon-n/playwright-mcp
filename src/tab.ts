@@ -45,12 +45,19 @@ export class Tab extends EventEmitter<TabEventsInterface> {
   private _onPageClose: (tab: Tab) => void;
   private _modalStates: ModalState[] = [];
   private _downloads: { download: playwright.Download, finished: boolean, outputFile: string }[] = [];
+  private _fullSnapshot: string = '';
+  private _snapshotSpans: string[] = [];
+  private _currentSpanIndex: number = 0;
+  private _snapshotSpanSize: number = 2000;
+  private _globalLines: string[] = [];
+  private _spanToGlobalLineMap: Array<{ startLine: number; endLine: number }> = [];
 
   constructor(context: Context, page: playwright.Page, onPageClose: (tab: Tab) => void) {
     super();
     this.context = context;
     this.page = page;
     this._onPageClose = onPageClose;
+    this._snapshotSpanSize = context.config.spanSize || 2000;
     page.on('console', event => this._handleConsoleMessage(messageToConsoleMessage(event)));
     page.on('pageerror', error => this._handleConsoleMessage(pageErrorToConsoleMessage(error)));
     page.on('request', request => this._requests.set(request, null));
@@ -118,6 +125,200 @@ export class Tab extends EventEmitter<TabEventsInterface> {
     this._consoleMessages.length = 0;
     this._recentConsoleMessages.length = 0;
     this._requests.clear();
+    this._resetSnapshot();
+  }
+
+  private _resetSnapshot() {
+    this._fullSnapshot = '';
+    this._snapshotSpans = [];
+    this._currentSpanIndex = 0;
+    this._globalLines = [];
+    this._spanToGlobalLineMap = [];
+  }
+
+  private _splitSnapshotIntoSpans(snapshot: string): string[] {
+    const lines = snapshot.split('\n');
+    this._globalLines = lines; // Store global lines
+
+    // If span size is -1, return the entire snapshot as a single span
+    if (this._snapshotSpanSize === -1) {
+      this._spanToGlobalLineMap = [{
+        startLine: 1,
+        endLine: lines.length
+      }];
+      return [snapshot];
+    }
+
+    const spans: string[] = [];
+    this._spanToGlobalLineMap = []; // Reset span mapping
+
+    let currentSpan = '';
+    let currentLength = 0;
+    let spanStartLineIndex = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const lineWithNewline = line + '\n';
+
+      // If adding this line would exceed the span size and we have content
+      if (currentLength + lineWithNewline.length > this._snapshotSpanSize && currentSpan.length > 0) {
+        spans.push(currentSpan.trimEnd());
+        // Record the line range for this span (1-based)
+        this._spanToGlobalLineMap.push({
+          startLine: spanStartLineIndex + 1,
+          endLine: i
+        });
+
+        currentSpan = lineWithNewline;
+        currentLength = lineWithNewline.length;
+        spanStartLineIndex = i;
+      } else {
+        currentSpan += lineWithNewline;
+        currentLength += lineWithNewline.length;
+      }
+    }
+
+    // Add the last span if it has content
+    if (currentSpan.trim().length > 0) {
+      spans.push(currentSpan.trimEnd());
+      this._spanToGlobalLineMap.push({
+        startLine: spanStartLineIndex + 1,
+        endLine: lines.length
+      });
+    }
+
+    return spans.length > 0 ? spans : [''];
+  }
+
+  setSnapshotSpanSize(size: number) {
+    this._snapshotSpanSize = size === -1 ? -1 : Math.max(100, size); // Allow -1 for complete snapshot, minimum 100 chars otherwise
+    if (this._fullSnapshot) {
+      this._snapshotSpans = this._splitSnapshotIntoSpans(this._fullSnapshot);
+      this._currentSpanIndex = Math.min(this._currentSpanIndex, this._snapshotSpans.length - 1);
+    }
+  }
+
+  getSnapshotSpanSize(): number {
+    return this._snapshotSpanSize;
+  }
+
+  getCurrentSpanIndex(): number {
+    return this._currentSpanIndex;
+  }
+
+  getTotalSpans(): number {
+    return this._snapshotSpans.length;
+  }
+
+  navigateToSpan(index: number): { success: boolean; span: string; spanIndex: number; totalSpans: number } {
+    if (this._snapshotSpans.length === 0)
+      return { success: false, span: '', spanIndex: 0, totalSpans: 0 };
+
+
+    const clampedIndex = Math.max(0, Math.min(index, this._snapshotSpans.length - 1));
+    this._currentSpanIndex = clampedIndex;
+
+    return {
+      success: true,
+      span: this._snapshotSpans[clampedIndex],
+      spanIndex: clampedIndex,
+      totalSpans: this._snapshotSpans.length
+    };
+  }
+
+  navigateToFirstSpan() {
+    return this.navigateToSpan(0);
+  }
+
+  navigateToLastSpan() {
+    return this.navigateToSpan(this._snapshotSpans.length - 1);
+  }
+
+  navigateToNextSpan() {
+    return this.navigateToSpan(this._currentSpanIndex + 1);
+  }
+
+  navigateToPrevSpan() {
+    return this.navigateToSpan(this._currentSpanIndex - 1);
+  }
+
+  searchInSnapshot(pattern: string, flags?: string): { spanIndices: number[]; matches: Array<{ spanIndex: number; line: string; inSpanLineNumber: number; globalLineNumber: number }> } {
+    const regex = new RegExp(pattern, flags || 'gi');
+    const spanIndices: number[] = [];
+    const matches: Array<{ spanIndex: number; line: string; inSpanLineNumber: number; globalLineNumber: number }> = [];
+
+    this._snapshotSpans.forEach((span, spanIndex) => {
+      const lines = span.split('\n');
+      let hasMatch = false;
+      const spanLineRange = this._spanToGlobalLineMap[spanIndex];
+
+      lines.forEach((line, lineIndex) => {
+        if (regex.test(line)) {
+          hasMatch = true;
+          const globalLineNumber = spanLineRange ? spanLineRange.startLine + lineIndex : lineIndex + 1;
+          matches.push({
+            spanIndex,
+            line: line.trim(),
+            inSpanLineNumber: lineIndex + 1,
+            globalLineNumber
+          });
+        }
+      });
+
+      if (hasMatch)
+        spanIndices.push(spanIndex);
+
+    });
+
+    return { spanIndices, matches };
+  }
+
+  navigateToLine(globalLineNumber: number, contextLines = 3): { success: boolean; content: string; lineInfo: string } {
+    if (this._globalLines.length === 0)
+      return { success: false, content: '', lineInfo: 'No snapshot available. Take a snapshot first.' };
+
+
+    const targetLineIndex = globalLineNumber - 1; // Convert to 0-based
+    if (targetLineIndex < 0 || targetLineIndex >= this._globalLines.length) {
+      return {
+        success: false,
+        content: '',
+        lineInfo: `Line ${globalLineNumber} is out of range. Snapshot has ${this._globalLines.length} lines.`
+      };
+    }
+
+    // Calculate context range
+    const startLine = Math.max(0, targetLineIndex - contextLines);
+    const endLine = Math.min(this._globalLines.length - 1, targetLineIndex + contextLines);
+
+    // Find which spans contain these lines
+    const involvedSpans: number[] = [];
+    for (let spanIndex = 0; spanIndex < this._spanToGlobalLineMap.length; spanIndex++) {
+      const spanRange = this._spanToGlobalLineMap[spanIndex];
+      // Check if this span overlaps with our context range (convert to 0-based for comparison)
+      if (spanRange.startLine - 1 <= endLine && spanRange.endLine - 1 >= startLine)
+        involvedSpans.push(spanIndex);
+
+    }
+
+    // Build the context content
+    const contextContent: string[] = [];
+    for (let i = startLine; i <= endLine; i++) {
+      const lineNumber = i + 1;
+      const isTarget = i === targetLineIndex;
+      const marker = isTarget ? '>>> ' : '    ';
+      contextContent.push(`${marker}${lineNumber}: ${this._globalLines[i]}`);
+    }
+
+    const spanInfo = involvedSpans.length > 0
+      ? `Lines from spans: ${involvedSpans.map(s => s + 1).join(', ')}`
+      : 'Span information unavailable';
+
+    return {
+      success: true,
+      content: contextContent.join('\n'),
+      lineInfo: `Showing lines ${startLine + 1}-${endLine + 1} (±${contextLines} context around line ${globalLineNumber})\n${spanInfo}`
+    };
   }
 
   private _handleConsoleMessage(message: ConsoleMessage) {
@@ -210,16 +411,78 @@ export class Tab extends EventEmitter<TabEventsInterface> {
     result.push(...this._listDownloadsMarkdown());
 
     await this._raceAgainstModalStates(async () => {
-      const snapshot = await (this.page as PageEx)._snapshotForAI();
-      result.push(
-          `### Page state`,
-          `- Page URL: ${this.page.url()}`,
-          `- Page Title: ${await this.page.title()}`,
-          `- Page Snapshot:`,
-          '```yaml',
-          snapshot,
-          '```',
-      );
+      // Get the full snapshot
+      const fullSnapshot = await (this.page as PageEx)._snapshotForAI();
+
+      // Smart span preservation logic
+      if (this._fullSnapshot !== fullSnapshot) {
+        const previousSpans = this._snapshotSpans;
+        const previousCurrentSpanIndex = this._currentSpanIndex;
+
+        // Update snapshot and create new spans
+        this._fullSnapshot = fullSnapshot;
+        this._snapshotSpans = this._splitSnapshotIntoSpans(fullSnapshot);
+
+        // Determine if we should preserve current span position
+        if (previousSpans.length === 0) {
+          // First time snapshot - start at first span
+          this._currentSpanIndex = 0;
+        } else if (this._snapshotSpans.length === previousSpans.length &&
+                   previousCurrentSpanIndex < this._snapshotSpans.length) {
+          // Same number of spans - check if only current span changed
+          let onlyCurrentSpanChanged = true;
+
+          for (let i = 0; i < this._snapshotSpans.length; i++) {
+            if (i !== previousCurrentSpanIndex && this._snapshotSpans[i] !== previousSpans[i]) {
+              onlyCurrentSpanChanged = false;
+              break;
+            }
+          }
+
+          if (onlyCurrentSpanChanged) {
+            // Only current span changed - stay in same position
+            this._currentSpanIndex = previousCurrentSpanIndex;
+          } else {
+            // Multiple spans changed - reset to first span
+            this._currentSpanIndex = 0;
+          }
+        } else {
+          // Different number of spans - reset to first span
+          this._currentSpanIndex = 0;
+        }
+
+        // Ensure current span index is within bounds
+        this._currentSpanIndex = Math.min(this._currentSpanIndex, this._snapshotSpans.length - 1);
+      }
+
+      // Get current span
+      const currentSpan = this._snapshotSpans[this._currentSpanIndex] || '';
+
+      if (this._snapshotSpanSize === -1) {
+        // Complete snapshot mode - no span information needed
+        result.push(
+            `### Page state`,
+            `- Page URL: ${this.page.url()}`,
+            `- Page Title: ${await this.page.title()}`,
+            `- Page Snapshot:`,
+            '```yaml',
+            currentSpan,
+            '```'
+        );
+      } else {
+        // Span mode - show span information and navigation hints
+        result.push(
+            `### Page state`,
+            `- Page URL: ${this.page.url()}`,
+            `- Page Title: ${await this.page.title()}`,
+            `- Page Snapshot (Span ${this._currentSpanIndex + 1} of ${this._snapshotSpans.length}):`,
+            '```yaml',
+            currentSpan,
+            '```',
+            '',
+            `*Use snapshot navigation tools to view other spans. Current span size: ${this._snapshotSpanSize} characters*`
+        );
+      }
     });
     return result.join('\n');
   }

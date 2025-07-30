@@ -25,7 +25,7 @@ const snapshot = defineTool({
   schema: {
     name: 'browser_snapshot',
     title: 'Page snapshot',
-    description: 'Capture accessibility snapshot of the current page, this is better than screenshot',
+    description: 'Capture accessibility snapshot of the current page. The snapshot is divided into manageable spans (configurable via --span-size, default 2000 characters, or use -1 to show complete snapshot) and shows the first span by default. Use browser_snapshot_navigate_* tools to view other spans or browser_snapshot_search to find content across all spans. This provides structured element data with ref attributes for interaction, making it better than screenshots for automation.',
     inputSchema: z.object({}),
     type: 'readOnly',
   },
