@@ -1,18 +1,18 @@
 {
-  "name": "@playwright/mcp",
-  "version": "0.0.32",
+  "name": "@lockon0927/playwright-mcp-with-chunk",
+  "version": "0.1.1",
   "description": "Playwright Tools for MCP",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/microsoft/playwright-mcp.git"
+    "url": "git+https://github.com/lockon-n/playwright-mcp.git"
   },
   "homepage": "https://playwright.dev",
   "engines": {
     "node": ">=18"
   },
   "author": {
-    "name": "Microsoft Corporation"
+    "name": "Microsoft Corporation & Lockon"
   },
   "license": "Apache-2.0",
   "scripts": {
@@ -59,7 +59,7 @@
     "@typescript-eslint/eslint-plugin": "^8.26.1",
     "@typescript-eslint/parser": "^8.26.1",
     "@typescript-eslint/utils": "^8.26.1",
-    "esbuild": "^0.20.1",
+    "esbuild": "^0.25.8",
     "eslint": "^9.19.0",
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-notice": "^1.0.0",
