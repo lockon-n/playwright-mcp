@@ -750,3 +750,11 @@ http.createServer(async (req, res) => {
 
 
 <!--- End of tools generated section -->
+
+## Release Notes
+
+### v0.1.2
+- **Improved Snapshot Display**: Fixed long line truncation in snapshot spans
+  - Single lines that exceed the span size limit are now properly truncated with clear indication
+  - Added information showing original line length (e.g., `... [line truncated, originally with 2048 chars]`)
+  - Prevents individual spans from becoming excessively large due to single long lines

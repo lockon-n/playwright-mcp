@@ -158,10 +158,17 @@ export class Tab extends EventEmitter<TabEventsInterface> {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      const lineWithNewline = line + '\n';
+      let lineToAdd = line + '\n';
+
+      // If the line itself is too long, truncate it
+      if (lineToAdd.length > this._snapshotSpanSize) {
+        const originalLength = line.length;
+        const maxLineLength = this._snapshotSpanSize - 50; // Reserve space for truncation indicator
+        lineToAdd = line.substring(0, maxLineLength) + `... [line truncated, originally with ${originalLength} chars]\n`;
+      }
 
       // If adding this line would exceed the span size and we have content
-      if (currentLength + lineWithNewline.length > this._snapshotSpanSize && currentSpan.length > 0) {
+      if (currentLength + lineToAdd.length > this._snapshotSpanSize && currentSpan.length > 0) {
         spans.push(currentSpan.trimEnd());
         // Record the line range for this span (1-based)
         this._spanToGlobalLineMap.push({
@@ -169,12 +176,12 @@ export class Tab extends EventEmitter<TabEventsInterface> {
           endLine: i
         });
 
-        currentSpan = lineWithNewline;
-        currentLength = lineWithNewline.length;
+        currentSpan = lineToAdd;
+        currentLength = lineToAdd.length;
         spanStartLineIndex = i;
       } else {
-        currentSpan += lineWithNewline;
-        currentLength += lineWithNewline.length;
+        currentSpan += lineToAdd;
+        currentLength += lineToAdd.length;
       }
     }
 
